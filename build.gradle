@@ -1,9 +1,14 @@
 apply plugin: 'java'
 
-group 'com.example'
+group 'com.wizzardo'
 version '1.0-SNAPSHOT'
 
 sourceCompatibility = 1.8
+
+ext {
+    descriptionString = 'Spring compatibility lib for Webery'
+}
+apply from: 'gradle/sonatype.gradle'
 
 repositories {
     mavenCentral()
