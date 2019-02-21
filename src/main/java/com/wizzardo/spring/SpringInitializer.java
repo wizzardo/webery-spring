@@ -43,6 +43,7 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.context.NoSuchMessageException;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -133,6 +134,8 @@ public class SpringInitializer {
                 return new SingletonDependency<T>(v);
             }
         });
+
+        initEnvironment(app);
 
         stopwatch = new Stopwatch("initComponents");
         List<Class<?>> components = initComponents(classMap);
@@ -288,6 +291,82 @@ public class SpringInitializer {
             }
         }
         return list;
+    }
+
+    protected static void initEnvironment(WebApplication app) {
+        Environment environment = new Environment() {
+            @Override
+            public boolean containsProperty(String key) {
+                throw new IllegalStateException("Not implemented yet");
+            }
+
+            @Override
+            public String getProperty(String key) {
+                throw new IllegalStateException("Not implemented yet");
+            }
+
+            @Override
+            public String getProperty(String key, String defaultValue) {
+                throw new IllegalStateException("Not implemented yet");
+            }
+
+            @Override
+            public <T> T getProperty(String key, Class<T> targetType) {
+                throw new IllegalStateException("Not implemented yet");
+            }
+
+            @Override
+            public <T> T getProperty(String key, Class<T> targetType, T defaultValue) {
+                throw new IllegalStateException("Not implemented yet");
+            }
+
+            @Override
+            public <T> Class<T> getPropertyAsClass(String key, Class<T> targetType) {
+                throw new IllegalStateException("Not implemented yet");
+            }
+
+            @Override
+            public String getRequiredProperty(String key) throws IllegalStateException {
+                throw new IllegalStateException("Not implemented yet");
+            }
+
+            @Override
+            public <T> T getRequiredProperty(String key, Class<T> targetType) throws IllegalStateException {
+                throw new IllegalStateException("Not implemented yet");
+            }
+
+            @Override
+            public String resolvePlaceholders(String text) {
+                throw new IllegalStateException("Not implemented yet");
+            }
+
+            @Override
+            public String resolveRequiredPlaceholders(String text) throws IllegalArgumentException {
+                throw new IllegalStateException("Not implemented yet");
+            }
+
+            @Override
+            public String[] getActiveProfiles() {
+                return app.getProfiles().toArray(new String[0]);
+            }
+
+            @Override
+            public String[] getDefaultProfiles() {
+                return new String[0];
+            }
+
+            @Override
+            public boolean acceptsProfiles(String... profiles) {
+                for (String profile : profiles) {
+                    if (!app.getProfiles().contains(profile)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        };
+
+        DependencyFactory.get().register(Environment.class, new SingletonDependency<>(environment));
     }
 
     protected static void initRestControllers(WebApplication app, List<Class<?>> components, Map<Class<?>, List<Annotation>> classMap) {
