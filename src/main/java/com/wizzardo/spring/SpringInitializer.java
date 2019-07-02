@@ -137,21 +137,41 @@ public class SpringInitializer {
 
         initEnvironment(app);
 
+        SpringIntegrationConfig springConfig = DependencyFactory.get(SpringIntegrationConfig.class);
+
         stopwatch = new Stopwatch("initComponents");
         List<Class<?>> components = initComponents(classMap);
         System.out.println(stopwatch);
 
-        stopwatch = new Stopwatch("initRestControllers");
-        initRestControllers(app, components, classMap);
-        System.out.println(stopwatch);
+        if (Boolean.valueOf(springConfig.withRestControllers)) {
+            stopwatch = new Stopwatch("initRestControllers");
+            initRestControllers(app, components, classMap);
+            System.out.println(stopwatch);
+        }
 
-        stopwatch = new Stopwatch("initWebsockets");
-        initWebsockets(app, classes);
-        System.out.println(stopwatch);
+        if (Boolean.valueOf(springConfig.withWebsockets)) {
+            stopwatch = new Stopwatch("initWebsockets");
+            initWebsockets(app, classes);
+            System.out.println(stopwatch);
+        }
 
-        stopwatch = new Stopwatch("initSchedulers");
-        initSchedulers(classes);
-        System.out.println(stopwatch);
+        if (Boolean.valueOf(springConfig.withScheduled)) {
+            stopwatch = new Stopwatch("initSchedulers");
+            initSchedulers(classes);
+            System.out.println(stopwatch);
+        }
+    }
+
+    public static class SpringIntegrationConfig implements com.wizzardo.http.framework.Configuration {
+
+        public String withRestControllers;
+        public String withWebsockets;
+        public String withScheduled;
+
+        @Override
+        public String prefix() {
+            return "webery.spring";
+        }
     }
 
     protected static Cache<ScheduledRunnable, Boolean> scheduledMethods = new Cache<>("scheduledMethods", 1);
