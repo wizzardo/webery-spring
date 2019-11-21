@@ -724,8 +724,10 @@ public class SpringInitializer {
 
                         if (entity.getBody() != null)
                             response.body(String.valueOf(entity.getBody()));
+                        else if (shouldAddEmptyBody(response.status()))
+                            response.body(new byte[0]);
 
-                        if (!entity.getHeaders().containsKey("Content-Type"))
+                        if (response.contentLength() != 0 && !entity.getHeaders().containsKey("Content-Type"))
                             response.appendHeader(Header.KV_CONTENT_TYPE_TEXT_PLAIN);
 
                         entity.getHeaders().forEach((key, values) -> values.forEach(value -> response.appendHeader(key, value)));
@@ -737,8 +739,10 @@ public class SpringInitializer {
 
                         if (entity.getBody() != null)
                             response.body((byte[]) entity.getBody());
+                        else if (shouldAddEmptyBody(response.status()))
+                            response.body(new byte[0]);
 
-                        if (!entity.getHeaders().containsKey("Content-Type"))
+                        if (response.contentLength() != 0 && !entity.getHeaders().containsKey("Content-Type"))
                             response.appendHeader(Header.KV_CONTENT_TYPE_APPLICATION_OCTET_STREAM);
 
                         entity.getHeaders().forEach((key, values) -> values.forEach(value -> response.appendHeader(key, value)));
@@ -750,8 +754,10 @@ public class SpringInitializer {
 
                         if (entity.getBody() != null)
                             response.body(JsonResponseHelper.renderJson(entity.getBody()));
+                        else if (shouldAddEmptyBody(response.status()))
+                            response.body(new byte[0]);
 
-                        if (!entity.getHeaders().containsKey("Content-Type"))
+                        if (response.contentLength() != 0 && !entity.getHeaders().containsKey("Content-Type"))
                             response.appendHeader(Header.KV_CONTENT_TYPE_APPLICATION_JSON);
 
                         entity.getHeaders().forEach((key, values) -> values.forEach(value -> response.appendHeader(key, value)));
@@ -919,6 +925,15 @@ public class SpringInitializer {
                 return response;
             }
         };
+    }
+
+    private static boolean shouldAddEmptyBody(Status status) {
+        if (status.code == 204)
+            return false;
+        if (status.code >= 300 && status.code < 400)
+            return false;
+
+        return true;
     }
 
     static Mapper<Request, Object> notNull(Mapper<Request, Object> src, Class type, String name, int number) {
