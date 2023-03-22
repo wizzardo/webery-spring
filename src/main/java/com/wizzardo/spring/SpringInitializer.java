@@ -104,7 +104,7 @@ public class SpringInitializer {
             Character.class
     )));
 
-    public static void init(WebApplication app, ResourceTools tools) {
+    public void init(WebApplication app, ResourceTools tools) {
         setupLogging();
 
         Stopwatch stopwatch = new Stopwatch("load classes");
@@ -199,7 +199,7 @@ public class SpringInitializer {
     }
 
 
-    protected static void initSchedulers(List<Class> classes) {
+    protected void initSchedulers(List<Class> classes) {
         scheduledMethods.onRemove((scheduled, aBoolean) -> {
             long start = System.currentTimeMillis();
             scheduledPool.execute(() -> {
@@ -247,7 +247,7 @@ public class SpringInitializer {
                 });
     }
 
-    private static void initWebsockets(WebApplication app, List<Class> classes) {
+    protected void initWebsockets(WebApplication app, List<Class> classes) {
         classes.stream()
                 .filter(aClass -> WebSocketConfigurer.class.isAssignableFrom(aClass))
                 .filter(aClass -> aClass.isAnnotationPresent(Configuration.class))
@@ -256,11 +256,15 @@ public class SpringInitializer {
                 .map(o -> (WebSocketConfigurer) o)
                 .forEach(webSocketConfigurer -> {
                     System.out.println("registering websocket with " + webSocketConfigurer.getClass());
-                    ((WebSocketConfigurer) webSocketConfigurer).registerWebSocketHandlers(new MyWebSocketHandlerRegistry(app));
+                    webSocketConfigurer.registerWebSocketHandlers(createWebsocketHandlerRegistry(app));
                 });
     }
 
-    protected static void setupLogging() {
+    protected WebSocketHandlerRegistry createWebsocketHandlerRegistry(WebApplication app) {
+        return new MyWebSocketHandlerRegistry(app);
+    }
+
+    protected void setupLogging() {
         Config logging = Holders.getConfig().config("logging");
 
         LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
@@ -293,7 +297,7 @@ public class SpringInitializer {
         }
     }
 
-    protected static List<Pair<String, Level>> getLogLevels(Config config, List<Pair<String, Level>> list) {
+    protected List<Pair<String, Level>> getLogLevels(Config config, List<Pair<String, Level>> list) {
         for (Map.Entry<String, Object> entry : config.entrySet()) {
             if (entry.getValue() instanceof Config) {
                 getLogLevels((Config) entry.getValue(), list);
@@ -313,7 +317,7 @@ public class SpringInitializer {
         return list;
     }
 
-    protected static void initEnvironment(WebApplication app) {
+    protected void initEnvironment(WebApplication app) {
         Environment environment = new Environment() {
             @Override
             public boolean containsProperty(String key) {
@@ -389,7 +393,7 @@ public class SpringInitializer {
         DependencyFactory.get().register(Environment.class, new SingletonDependency<>(environment));
     }
 
-    protected static void initRestControllers(WebApplication app, List<Class<?>> components, Map<Class<?>, List<Annotation>> classMap) {
+    protected void initRestControllers(WebApplication app, List<Class<?>> components, Map<Class<?>, List<Annotation>> classMap) {
         Map<String, RestHandler> handlers = new HashMap<>();
         components.stream()
                 .filter(aClass -> classMap.get(aClass).stream().filter(annotation -> annotation instanceof RestController).findAny().isPresent())
@@ -669,7 +673,7 @@ public class SpringInitializer {
         }
     }
 
-    private static RestHandler getRestHandler(WebApplication app, Map<String, RestHandler> handlers, String path) {
+    protected RestHandler getRestHandler(WebApplication app, Map<String, RestHandler> handlers, String path) {
         path = path.replaceAll("\\{", "\\$\\{");
 //        path = path.replaceAll("\\}", "}?");
         String finalPath = path;
@@ -702,7 +706,7 @@ public class SpringInitializer {
         });
     }
 
-    private static Handler createHandler(Object controller, Method method) {
+    protected Handler createHandler(Object controller, Method method) {
         Class<?> returnType = method.getReturnType();
         BiConsumer<Object, Response> resultSetter;
         if (returnType.equals(String.class)) {
@@ -916,8 +920,16 @@ public class SpringInitializer {
                 context.setController(controllerName);
                 context.setAction(method.getName());
 
+                RequestContext copiedContext = context.copy();
+
                 if (request.isMultipart() && !request.isMultiPartDataPrepared()) {
-                    return new MultipartHandler(this, 5120L * 1024 * 1024).handle(request, response); //todo read config
+                    Handler handler = this;
+                    return new MultipartHandler((req, res) -> {
+                        //restoring RequestContext after reset because of async response
+                        RequestContext.get().set(copiedContext);
+
+                        return handler.handle(req, res);
+                    }, 5120L * 1024 * 1024).handle(request, response); //todo read config
                 }
 
                 Object result = renderer.execute(request, response);
@@ -927,7 +939,7 @@ public class SpringInitializer {
         };
     }
 
-    private static boolean shouldAddEmptyBody(Status status) {
+    protected boolean shouldAddEmptyBody(Status status) {
         if (status.code == 204)
             return false;
         if (status.code >= 300 && status.code < 400)
@@ -936,7 +948,7 @@ public class SpringInitializer {
         return true;
     }
 
-    static Mapper<Request, Object> notNull(Mapper<Request, Object> src, Class type, String name, int number) {
+    protected Mapper<Request, Object> notNull(Mapper<Request, Object> src, Class type, String name, int number) {
         return request -> {
             Object result = src.map(request);
             if (result == null)
@@ -946,7 +958,7 @@ public class SpringInitializer {
         };
     }
 
-    static Mapper<Request, Object> notNullAttribute(Mapper<Request, Object> src, Class type, String name, int number) {
+    protected Mapper<Request, Object> notNullAttribute(Mapper<Request, Object> src, Class type, String name, int number) {
         return request -> {
             Object result = src.map(request);
             if (result == null)
@@ -976,7 +988,7 @@ public class SpringInitializer {
         }
     }
 
-    protected static List<Class<?>> initComponents(Map<Class<?>, List<Annotation>> classMap) {
+    protected List<Class<?>> initComponents(Map<Class<?>, List<Annotation>> classMap) {
         List<Class<?>> components = classMap.entrySet().stream()
                 .filter(e -> e.getValue().stream().anyMatch(annotation -> annotation instanceof Component))
                 .map(Map.Entry::getKey)
@@ -1001,11 +1013,11 @@ public class SpringInitializer {
         return components;
     }
 
-    public static <T> void registerDependency(Class<T> cl) {
+    public <T> void registerDependency(Class<T> cl) {
         registerDependency(cl, cl);
     }
 
-    public static <T> void registerDependency(Class<T> cl, Class<? extends T> imp) {
+    public <T> void registerDependency(Class<T> cl, Class<? extends T> imp) {
         DependencyFactory.get().register(cl, new SingletonDependency<T>(imp) {
             @Override
             protected void onCreate(T component) {
@@ -1015,13 +1027,13 @@ public class SpringInitializer {
         });
     }
 
-    private static void executePostConstruct(Object component, Class<?> cl) {
+    protected void executePostConstruct(Object component, Class<?> cl) {
         Arrays.stream(cl.getMethods())
                 .filter(method -> method.isAnnotationPresent(PostConstruct.class))
                 .forEach(method -> Unchecked.run(() -> method.invoke(component)));
     }
 
-    protected static List<Annotation> getAnnotations(Class clazz) {
+    protected List<Annotation> getAnnotations(Class clazz) {
         Set<Annotation> result = new LinkedHashSet<>();
         Annotation[] annotations = clazz.getAnnotations();
         for (Annotation annotation : annotations) {
@@ -1033,7 +1045,7 @@ public class SpringInitializer {
                 .collect(Collectors.toList());
     }
 
-    protected static Set<Annotation> getAnnotations(Annotation a, Set<Annotation> to) {
+    protected Set<Annotation> getAnnotations(Annotation a, Set<Annotation> to) {
         Annotation[] annotations = a.annotationType().getAnnotations();
         for (Annotation annotation : annotations) {
             if (to.add(annotation))
@@ -1047,7 +1059,7 @@ public class SpringInitializer {
         return to;
     }
 
-    public static void loadConfig(WebApplication it) {
+    public void loadConfig(WebApplication it) {
         String activeProfiles = System.getProperty("spring.profiles.active", "default");
         it.getConfig().config("spring").config("profiles").put("active", activeProfiles);
 
@@ -1086,7 +1098,7 @@ public class SpringInitializer {
         it.getConfig().config("server").put("ttl", timeout);
     }
 
-    protected static void populateConfig(Config config, YamlObject yamlObject) {
+    protected void populateConfig(Config config, YamlObject yamlObject) {
         yamlObject.forEach((key, item) -> {
             Config c = config;
             String[] path = key.split("\\.");
