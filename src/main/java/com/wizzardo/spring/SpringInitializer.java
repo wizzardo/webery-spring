@@ -176,13 +176,13 @@ public class SpringInitializer {
 
     protected static Cache<ScheduledRunnable, Boolean> scheduledMethods = new Cache<>("scheduledMethods", 1);
 
-    static class ScheduledRunnable implements Runnable {
-        final String name;
-        final long fixedDelay;
-        final long fixedRate;
-        final long initialDelay;
-        final Runnable runnable;
-        AtomicInteger counter = new AtomicInteger(0);
+    protected static class ScheduledRunnable implements Runnable {
+        protected final String name;
+        protected final long fixedDelay;
+        protected final long fixedRate;
+        protected final long initialDelay;
+        protected final Runnable runnable;
+        protected final AtomicInteger counter = new AtomicInteger(0);
 
         ScheduledRunnable(String name, long fixedDelay, long fixedRate, long initialDelay, Runnable runnable) {
             this.name = name;
@@ -198,15 +198,18 @@ public class SpringInitializer {
         }
     }
 
+    protected void executeScheduled(ScheduledRunnable scheduled) {
+        System.out.println("executing " + scheduled.name);
+        scheduled.counter.incrementAndGet();
+        scheduled.run();
+    }
 
     protected void initSchedulers(List<Class> classes) {
         scheduledMethods.onRemove((scheduled, aBoolean) -> {
             long start = System.currentTimeMillis();
             scheduledPool.execute(() -> {
-                System.out.println("executing " + scheduled.name);
                 try {
-                    scheduled.counter.incrementAndGet();
-                    scheduled.run();
+                    executeScheduled(scheduled);
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {
