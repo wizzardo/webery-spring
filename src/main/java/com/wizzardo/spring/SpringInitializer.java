@@ -177,12 +177,12 @@ public class SpringInitializer {
     protected static Cache<ScheduledRunnable, Boolean> scheduledMethods = new Cache<>("scheduledMethods", 1);
 
     protected static class ScheduledRunnable implements Runnable {
-        protected final String name;
-        protected final long fixedDelay;
-        protected final long fixedRate;
-        protected final long initialDelay;
-        protected final Runnable runnable;
-        protected final AtomicInteger counter = new AtomicInteger(0);
+        public final String name;
+        public final long fixedDelay;
+        public final long fixedRate;
+        public final long initialDelay;
+        public final Runnable runnable;
+        public final AtomicInteger counter = new AtomicInteger(0);
 
         ScheduledRunnable(String name, long fixedDelay, long fixedRate, long initialDelay, Runnable runnable) {
             this.name = name;
