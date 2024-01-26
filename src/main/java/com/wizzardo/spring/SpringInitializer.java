@@ -923,9 +923,8 @@ public class SpringInitializer {
                 context.setController(controllerName);
                 context.setAction(method.getName());
 
-                RequestContext copiedContext = context.copy();
-
                 if (request.isMultipart() && !request.isMultiPartDataPrepared()) {
+                    RequestContext copiedContext = context.copy();
                     Handler handler = this;
                     return new MultipartHandler((req, res) -> {
                         //restoring RequestContext after reset because of async response
